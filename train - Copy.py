@@ -30,28 +30,28 @@ import argparse
 
 default_params = {
     # model parameters
-    'n_rnn': 2,
-    'dim': 512,
+    'n_rnn': 1,
+    'dim': 1024,
     'learn_h0': True,
-    'q_levels': 512,
+    'q_levels': 256,
     'seq_len': 1024,
-    'weight_norm': False,
+    'weight_norm': True,
     'batch_size': 128,
     'val_frac': 0.1,
     'test_frac': 0.1,
 
     # training parameters
-    'keep_old_checkpoints': True,
+    'keep_old_checkpoints': False,
     'datasets_path': 'datasets',
     'results_path': 'results',
-    'epoch_limit': 1,  # default: 1000
+    'epoch_limit': 1000,  # default: 1000
     'resume': True,
     'sample_rate': 16000,
     'n_samples': 1,
-    'sample_length': 7 * 16000,
-    'sampling_temperature': 0.90,
-    'loss_smoothing': 0.90,
-    'cuda': False,
+    'sample_length': 8 * 16000,
+    'sampling_temperature': 0.9,
+    'loss_smoothing': 0.99,
+    'cuda': True,
     'comet_key': None
 }
 
@@ -70,7 +70,7 @@ def param_to_string(value):
 
 def make_tag(params):
     return '-'.join(
-        key + '-' + param_to_string(params[key])
+        key + ':' + param_to_string(params[key])
         for key in tag_params
         if key not in default_params or params[key] != default_params[key]
     )
@@ -204,23 +204,11 @@ def main(exp, frame_sizes, dataset, **params):
 
     checkpoints_path = os.path.join(results_path, 'checkpoints')
     checkpoint_data = load_last_checkpoint(checkpoints_path)
-
     if checkpoint_data is not None:
         (state_dict, epoch, iteration) = checkpoint_data
         trainer.epochs = epoch
         trainer.iterations = iteration
         predictor.load_state_dict(state_dict)
-    else:
-        trainer.epochs = 0
-        trainer.iterations = 0
-        torch.save(predictor, os.path.join(checkpoints_path, "pytorch_model.bin"))
-    # else:
-    #     print("***** Saving fine-tuned model *****")
-    #     output_model_file = os.path.join(params['results_path'], "pytorch_model.bin")
-    #     if params['cuda']:
-    #         torch.save(predictor, output_model_file)
-    #     else:
-    #         torch.save(predictor, output_model_file)
 
     trainer.register_plugin(TrainingLossMonitor(
         smoothing=params['loss_smoothing']

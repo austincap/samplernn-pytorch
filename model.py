@@ -13,7 +13,7 @@ class SampleRNN(torch.nn.Module):
     def __init__(self, frame_sizes, n_rnn, dim, learn_h0, q_levels,
                  weight_norm):
         super().__init__()
-
+        print("INIT MODEL")
         self.dim = dim
         self.q_levels = q_levels
 

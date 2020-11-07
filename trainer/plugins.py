@@ -8,8 +8,8 @@ from torch.autograd import Variable
 from torch.utils.trainer.plugins.plugin import Plugin
 from torch.utils.trainer.plugins.monitor import Monitor
 from torch.utils.trainer.plugins import LossMonitor
-
-from librosa.output import write_wav
+import librosa
+#from librosa.output import write_wav
 from matplotlib import pyplot
 
 from glob import glob
@@ -44,7 +44,7 @@ class ValidationPlugin(Plugin):
         val_stats['last'] = self._evaluate(self.val_dataset)
         test_stats = self.trainer.stats.setdefault('test_loss', {})
         test_stats['last'] = self._evaluate(self.test_dataset)
-
+        print(idx)
         self.trainer.model.train()
 
     def _evaluate(self, dataset):
@@ -100,6 +100,7 @@ class SaverPlugin(Plugin):
     best_pattern = 'best-ep{}-it{}'
 
     def __init__(self, checkpoints_path, keep_old_checkpoints):
+        print("INIT SAVERPLUGIN")
         super().__init__([(1, 'epoch')])
         self.checkpoints_path = checkpoints_path
         self.keep_old_checkpoints = keep_old_checkpoints
@@ -108,14 +109,30 @@ class SaverPlugin(Plugin):
     def register(self, trainer):
         self.trainer = trainer
 
+    def iteration(self, *args):
+        print("ITERASTION")
+        torch.save(
+            self.trainer.model.state_dict(),
+            os.path.join(
+                self.checkpoints_path,
+                self.last_pattern.format(epoch_index, self.trainer.iterations), 
+                "pytorch_model.bin"
+
+            )
+        )
+
+
     def epoch(self, epoch_index):
+        print("epoch_index")
         if not self.keep_old_checkpoints:
             self._clear(self.last_pattern.format('*', '*'))
         torch.save(
             self.trainer.model.state_dict(),
             os.path.join(
                 self.checkpoints_path,
-                self.last_pattern.format(epoch_index, self.trainer.iterations)
+                self.last_pattern.format(epoch_index, self.trainer.iterations), 
+                "pytorch_model.bin"
+
             )
         )
 
@@ -162,7 +179,8 @@ class GeneratorPlugin(Plugin):
         samples = self.generate(self.n_samples, self.sample_length, self.sampling_temperature, initial_seq=initial_seq) \
                       .cpu().float().numpy()
         for i in range(self.n_samples):
-            write_wav(
+            #write_wav(
+            librosa.output.write_wav(
                 os.path.join(
                     self.samples_path, self.pattern.format(epoch_index, i + 1)
                 ),
@@ -178,7 +196,7 @@ class StatsPlugin(Plugin):
     def __init__(self, results_path, iteration_fields, epoch_fields, plots):
         super().__init__([(1, 'iteration'), (1, 'epoch')])
         self.results_path = results_path
-
+        print("INIT STATSPLUGIN")
         self.iteration_fields = self._fields_to_pairs(iteration_fields)
         self.epoch_fields = self._fields_to_pairs(epoch_fields)
         self.plots = plots
@@ -197,7 +215,17 @@ class StatsPlugin(Plugin):
         self.trainer = trainer
 
     def iteration(self, *args):
+        torch.save(
+            self.trainer.model.state_dict(),
+            os.path.join(
+                self.checkpoints_path,
+                self.last_pattern.format(epoch_index, self.trainer.iterations), 
+                "pytorch_model.bin"
+
+            )
+        )
         for (field, stat) in self.iteration_fields:
+            print("ITERATION")
             self.data['iterations'][field, stat].append(
                 self.trainer.stats[field][stat]
             )
